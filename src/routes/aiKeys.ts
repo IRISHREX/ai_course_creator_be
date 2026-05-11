@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole, AuthedRequest } from "../auth.js";
-import { decryptApiKey, saveUserAiKey } from "../aiKeys.js";
+import { decryptApiKey, isAiKeyDecryptionError, saveUserAiKey } from "../aiKeys.js";
 import { body, query } from "../validation.js";
 
 export const aiKeysRouter = Router();
@@ -65,7 +65,18 @@ aiKeysRouter.post("/check", ...adminOnly, async (req: AuthedRequest, res) => {
 
   const checks = [];
   for (const key of keys) {
-    const result = await checkGeminiKey(decryptApiKey(key.encryptedKey));
+    let result: Awaited<ReturnType<typeof checkGeminiKey>>;
+    try {
+      result = await checkGeminiKey(decryptApiKey(key.encryptedKey));
+    } catch (error) {
+      if (!isAiKeyDecryptionError(error)) throw error;
+      result = {
+        ok: false,
+        status: "invalid",
+        httpStatus: 400,
+        message: error.message,
+      };
+    }
     await prisma.userAiKey.update({
       where: { id: key.id },
       data: {

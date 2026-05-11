@@ -4,6 +4,19 @@ import { env } from "./env.js";
 
 const ALGORITHM = "aes-256-gcm";
 const KEY = createHash("sha256").update(env.JWT_SECRET).digest();
+export const AI_KEY_DECRYPTION_MESSAGE =
+  "Saved Gemini API key cannot be decrypted. Re-save the API key.";
+
+export class AiKeyDecryptionError extends Error {
+  constructor(message = AI_KEY_DECRYPTION_MESSAGE) {
+    super(message);
+    this.name = "AiKeyDecryptionError";
+  }
+}
+
+export function isAiKeyDecryptionError(error: unknown): error is AiKeyDecryptionError {
+  return error instanceof AiKeyDecryptionError;
+}
 
 export function encryptApiKey(value: string) {
   const iv = randomBytes(12);
@@ -14,15 +27,25 @@ export function encryptApiKey(value: string) {
 }
 
 export function decryptApiKey(value: string) {
-  const [ivRaw, tagRaw, encryptedRaw] = value.split(".");
-  if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error("Stored AI key is invalid");
-  const decipher = createDecipheriv(ALGORITHM, KEY, Buffer.from(ivRaw, "base64"));
-  decipher.setAuthTag(Buffer.from(tagRaw, "base64"));
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(encryptedRaw, "base64")),
-    decipher.final(),
-  ]);
-  return decrypted.toString("utf8");
+  try {
+    const [ivRaw, tagRaw, encryptedRaw] = value.split(".");
+    if (!ivRaw || !tagRaw || !encryptedRaw) throw new AiKeyDecryptionError();
+    const iv = Buffer.from(ivRaw, "base64");
+    const tag = Buffer.from(tagRaw, "base64");
+    const encrypted = Buffer.from(encryptedRaw, "base64");
+    if (iv.length !== 12 || tag.length !== 16 || !encrypted.length) throw new AiKeyDecryptionError();
+
+    const decipher = createDecipheriv(ALGORITHM, KEY, iv);
+    decipher.setAuthTag(tag);
+    const decrypted = Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]);
+    return decrypted.toString("utf8");
+  } catch (error) {
+    if (isAiKeyDecryptionError(error)) throw error;
+    throw new AiKeyDecryptionError();
+  }
 }
 
 export type DecryptedAiKey = {
@@ -37,12 +60,24 @@ export async function getUserAiKeys(userId: string): Promise<DecryptedAiKey[]> {
     where: { userId, status: "active" },
     orderBy: [{ updatedAt: "asc" }],
   });
-  return rows.map((row) => ({
-    id: row.id,
-    provider: row.provider,
-    keyPreview: row.keyPreview,
-    apiKey: decryptApiKey(row.encryptedKey),
-  }));
+  const keys: DecryptedAiKey[] = [];
+  for (const row of rows) {
+    try {
+      keys.push({
+        id: row.id,
+        provider: row.provider,
+        keyPreview: row.keyPreview,
+        apiKey: decryptApiKey(row.encryptedKey),
+      });
+    } catch (error) {
+      if (!isAiKeyDecryptionError(error)) throw error;
+      await prisma.userAiKey.update({
+        where: { id: row.id },
+        data: { status: "invalid", lastError: error.message },
+      });
+    }
+  }
+  return keys;
 }
 
 async function ensureMultipleAiKeysAllowed() {
