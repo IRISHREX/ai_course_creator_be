@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -62,7 +62,7 @@ model Course {
   description      String   @db.Text
   coverEmoji       String?  @default("📡") @map("cover_emoji")
   orderIndex       Int      @default(0) @map("order_index")
-  sourceText       String?  @map("source_text") @db.LongText
+  sourceText       String?  @map("source_text")
   generationStatus String   @default("ready") @map("generation_status")
   tags             Json     @default("[]")
   mindmap          Json?
@@ -86,7 +86,7 @@ model Topic {
   content          Json     @default("[]")
   quiz             Json     @default("[]")
   mindmap          Json?
-  visualization    String?  @db.LongText
+  visualization    String?  @db.Text
   difficultyLevel  Int      @default(5) @map("difficulty_level")
   generationStatus String   @default("ready") @map("generation_status")
   createdAt        DateTime @default(now()) @map("created_at")
@@ -108,7 +108,7 @@ model TopicVersion {
   content       Json     @default("[]")
   quiz          Json     @default("[]")
   mindmap       Json?
-  visualization String?  @db.LongText
+  visualization String?  @db.Text
   note          String?  @db.Text
   createdBy     String?  @map("created_by")
   createdAt     DateTime @default(now()) @map("created_at")
