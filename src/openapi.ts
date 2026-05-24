@@ -164,6 +164,33 @@ export const openApiDocument = {
     "/admin/stats": {
       get: { tags: ["Admin"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Counts for dashboard" } } },
     },
+    "/admin/backup": {
+      get: {
+        tags: ["Admin"],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "format",
+            in: "query",
+            schema: { type: "string", enum: ["sql", "json", "dictionary", "pdf", "docs"], default: "json" },
+            description: "Backup file format to download.",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Downloadable data backup. Password hashes and AI keys are excluded.",
+            content: {
+              "application/sql": { schema: { type: "string" } },
+              "application/json": { schema: { type: "object" } },
+              "application/pdf": { schema: { type: "string", format: "binary" } },
+              "application/msword": { schema: { type: "string", format: "binary" } },
+            },
+          },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Admin role required" },
+        },
+      },
+    },
     "/admin/users": {
       get: { tags: ["Admin"], security: [{ bearerAuth: [] }], parameters: [{ name: "q", in: "query", schema: { type: "string" } }], responses: { "200": { description: "Users with roles" } } },
     },

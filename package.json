@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts --exec \"tsx scripts/prisma-auto.ts generate && tsx src/server.ts\"",
-    "dev:nodemon": "nodemon --watch src --ext ts --exec \"tsx scripts/prisma-auto.ts generate && tsx src/server.ts\"",
+    "dev": "nodemon --watch src --ext ts --exec \"tsx src/server.ts\"",
+    "dev:nodemon": "nodemon --watch src --ext ts --exec \"tsx src/server.ts\"",
+    "dev:setup": "tsx scripts/prisma-auto.ts generate",
     "dev:mysql": "prisma generate --schema=prisma/schema.prisma && prisma migrate dev --schema=prisma/schema.prisma --name init && tsx watch src/server.ts",
     "dev:postgres": "prisma generate --schema=prisma/schema.postgres.prisma && prisma db push --schema=prisma/schema.postgres.prisma && tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
