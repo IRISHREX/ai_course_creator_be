@@ -66,24 +66,28 @@ aiKeysRouter.post("/check", ...adminOnly, async (req: AuthedRequest, res) => {
   const checks = [];
   for (const key of keys) {
     let result: Awaited<ReturnType<typeof checkGeminiKey>>;
+    let canPersistResult = true;
     try {
       result = await checkGeminiKey(decryptApiKey(key.encryptedKey));
     } catch (error) {
       if (!isAiKeyDecryptionError(error)) throw error;
+      canPersistResult = false;
       result = {
         ok: false,
-        status: "invalid",
+        status: key.status,
         httpStatus: 400,
         message: error.message,
       };
     }
-    await prisma.userAiKey.update({
-      where: { id: key.id },
-      data: {
-        status: result.status,
-        lastError: result.ok ? null : result.message,
-      },
-    });
+    if (canPersistResult) {
+      await prisma.userAiKey.update({
+        where: { id: key.id },
+        data: {
+          status: result.status,
+          lastError: result.ok ? null : result.message,
+        },
+      });
+    }
     checks.push({ id: key.id, keyPreview: key.keyPreview, ...result });
   }
   res.json({ check: checks[0], checks });

@@ -11,6 +11,10 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: AI_KEY_ENCRYPTION_SECRET
+        sync: false
+      - key: AI_KEY_LEGACY_SECRETS
+        sync: false
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: PORT

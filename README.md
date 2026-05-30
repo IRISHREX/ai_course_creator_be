@@ -40,6 +40,8 @@ Required:
 
 Optional:
 
+- `AI_KEY_ENCRYPTION_SECRET` stable secret for saved Gemini API keys; keep this unchanged across deploys
+- `AI_KEY_LEGACY_SECRETS` comma-separated old secrets that can still decrypt existing saved Gemini API keys
 - `JWT_EXPIRES_IN`
 - `PORT`
 - `JSON_BODY_LIMIT`

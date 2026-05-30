@@ -16,6 +16,13 @@ function int(name: string, fallback: number) {
   return value;
 }
 
+function csv(name: string): string[] {
+  return (process.env[name] || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 function databaseUrl(): string {
   const value = req("DATABASE_URL");
 
@@ -42,6 +49,8 @@ function databaseUrl(): string {
 export const env = {
   DATABASE_URL: databaseUrl(),
   JWT_SECRET: req("JWT_SECRET"),
+  AI_KEY_ENCRYPTION_SECRET: process.env.AI_KEY_ENCRYPTION_SECRET || req("JWT_SECRET"),
+  AI_KEY_LEGACY_SECRETS: csv("AI_KEY_LEGACY_SECRETS"),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
   NODE_ENV: process.env.NODE_ENV || "development",
   PORT: int("PORT", 8080),
