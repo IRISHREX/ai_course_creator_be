@@ -46,8 +46,28 @@ const UpsertPyq = z.object({
   topicIds: z.array(z.string().uuid()).optional(),
 });
 
+function cleanPyqText(value: string) {
+  return value
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^\s*(?:q(?:uestion)?\.?\s*)?\d+[\).:-]\s*/i, "")
+    .trim();
+}
+
+async function assertTopicsBelongToCourse(topicIds: string[], courseId: string) {
+  if (!topicIds.length) return;
+  const count = await prisma.topic.count({ where: { id: { in: topicIds }, courseId } });
+  if (count !== new Set(topicIds).size) {
+    throw new HttpError(400, "PYQ tags must belong to the same course", "PYQ_TOPIC_COURSE_MISMATCH");
+  }
+}
+
 pyqRouter.post("/", requireAuth, requireRole("admin", "super_admin"), async (req, res) => {
   const { topicIds = [], ...data } = body(UpsertPyq, req);
+  data.question = cleanPyqText(data.question);
+  data.answer = cleanPyqText(data.answer);
+  await assertTopicsBelongToCourse(topicIds, data.courseId);
   const pyq = await prisma.coursePyq.create({
     data: {
       ...(data as any),
@@ -60,10 +80,17 @@ pyqRouter.post("/", requireAuth, requireRole("admin", "super_admin"), async (req
 pyqRouter.patch("/:id", requireAuth, requireRole("admin", "super_admin"), async (req, res) => {
   const { id } = params(IdParam, req);
   const { topicIds, ...data } = body(UpsertPyq.partial(), req);
+  if (data.question) data.question = cleanPyqText(data.question);
+  if (data.answer) data.answer = cleanPyqText(data.answer);
   const pyq = await prisma.$transaction(async (tx) => {
     const pyqId = id;
     const updated = await tx.coursePyq.update({ where: { id: pyqId }, data: data as any });
     if (topicIds) {
+      const courseId = data.courseId || updated.courseId;
+      const count = await tx.topic.count({ where: { id: { in: topicIds }, courseId } });
+      if (count !== new Set(topicIds).size) {
+        throw new HttpError(400, "PYQ tags must belong to the same course", "PYQ_TOPIC_COURSE_MISMATCH");
+      }
       await tx.pyqTopic.deleteMany({ where: { pyqId } });
       if (topicIds.length)
         await tx.pyqTopic.createMany({
@@ -84,8 +111,9 @@ pyqRouter.delete("/:id", requireAuth, requireRole("admin", "super_admin"), async
 pyqRouter.post("/:id/topics", requireAuth, requireRole("admin", "super_admin"), async (req, res) => {
   const { id } = params(IdParam, req);
   const parsed = body(z.object({ topicId: z.string().uuid() }), req);
-  const exists = await prisma.coursePyq.findUnique({ where: { id }, select: { id: true } });
+  const exists = await prisma.coursePyq.findUnique({ where: { id }, select: { id: true, courseId: true } });
   if (!exists) throw new HttpError(404, "PYQ not found", "PYQ_NOT_FOUND");
+  await assertTopicsBelongToCourse([parsed.topicId], exists.courseId);
   const link = await prisma.pyqTopic.upsert({
     where: { pyqId_topicId: { pyqId: id, topicId: parsed.topicId } },
     update: {},
