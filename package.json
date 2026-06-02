@@ -24,7 +24,6 @@
     "prisma:push:postgres": "prisma db push --schema=prisma/schema.postgres.prisma",
     "prisma:dev": "prisma migrate dev",
     "prisma:dev:mysql": "prisma migrate dev --schema=prisma/schema.prisma",
-    "db:export": "tsx scripts/export-from-supabase.ts",
     "db:import": "tsx scripts/import-into-prisma.ts"
   },
   "dependencies": {
@@ -40,7 +39,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.45.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",

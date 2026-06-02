@@ -1,4 +1,4 @@
-// Prisma schema mirroring the existing Supabase schema
+// Prisma schema for the course creator backend database.
 generator client {
   provider = "prisma-client-js"
 }

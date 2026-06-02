@@ -48,11 +48,10 @@ Optional:
 - `CORS_ORIGIN`
 - `GOOGLE_AI_API_KEY`
 - `SUPER_ADMIN_EMAILS`
-- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for one-time migration only
 
-## Supabase Status
+## Frontend Bridge
 
-The React frontend still imports `src/integrations/supabase/client.ts`, but that file is a compatibility adapter over this backend API for normal app data and auth calls. The backend keeps `@supabase/supabase-js` only as a dev dependency for the one-time export script.
+The React frontend uses `src/integrations/api/client.ts` as a small API adapter for app data, auth, AI actions, and export/backup flows.
 
 ## Production
 
