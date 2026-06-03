@@ -31,6 +31,7 @@ const UpsertCourse = z.object({
   sourceText: z.string().optional(),
   generationStatus: z.string().optional(),
   tags: z.array(z.string()).optional(),
+  mindmap: z.any().optional(),
   toc: z.any().optional(),
 });
 
