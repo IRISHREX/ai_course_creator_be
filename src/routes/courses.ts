@@ -16,7 +16,6 @@ coursesRouter.get("/:slug", async (req, res) => {
   const { slug } = params(SlugParam, req);
   const course = await prisma.course.findUnique({
     where: { slug },
-    include: { topics: { orderBy: [{ unit: "asc" }, { orderIndex: "asc" }] } },
   });
   if (!course) throw new HttpError(404, "Course not found", "COURSE_NOT_FOUND");
   res.json({ course });

@@ -71,11 +71,11 @@ async function importTopics() {
       create: {
         id: t.id, courseId: t.course_id, slug: t.slug, unit: t.unit,
         orderIndex: t.order_index, title: t.title, summary: t.summary,
-        content: t.content || [], quiz: t.quiz || [], mindmap: t.mindmap,
+        content: t.content || [], translations: t.translations || [], quiz: t.quiz || [], mindmap: t.mindmap,
         visualization: t.visualization, difficultyLevel: t.difficulty_level || 5,
         generationStatus: t.generation_status || "ready",
         createdAt: new Date(t.created_at), updatedAt: new Date(t.updated_at),
-      },
+      } as any,
     });
   }
   console.log(`✓ topics: ${rows.length}`);

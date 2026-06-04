@@ -1,0 +1,1 @@
+ALTER TABLE `topics` ADD COLUMN `translations` JSON NOT NULL DEFAULT (JSON_ARRAY());

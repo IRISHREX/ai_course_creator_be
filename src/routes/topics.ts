@@ -38,6 +38,7 @@ const UpsertTopic = z.object({
   title: z.string().min(1),
   summary: z.string().default(""),
   content: z.any().optional(),
+  translations: z.any().optional(),
   quiz: z.any().optional(),
   mindmap: z.any().optional(),
   visualization: z.string().nullable().optional(),

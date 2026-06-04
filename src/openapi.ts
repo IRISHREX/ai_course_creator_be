@@ -58,6 +58,7 @@ export const openApiDocument = {
           title: { type: "string" },
           summary: { type: "string" },
           content: {},
+          translations: {},
           quiz: {},
           mindmap: {},
           visualization: { type: "string", nullable: true },

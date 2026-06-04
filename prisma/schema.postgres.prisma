@@ -84,6 +84,7 @@ model Topic {
   title            String
   summary          String   @db.Text
   content          Json     @default("[]")
+  translations     Json     @default("[]")
   quiz             Json     @default("[]")
   mindmap          Json?
   visualization    String?  @db.Text
