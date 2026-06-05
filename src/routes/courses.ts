@@ -8,7 +8,21 @@ import { HttpError } from "../http.js";
 export const coursesRouter = Router();
 
 coursesRouter.get("/", async (_req, res) => {
-  const courses = await prisma.course.findMany({ orderBy: { orderIndex: "asc" } });
+  const courses = await prisma.course.findMany({
+    orderBy: { orderIndex: "asc" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      coverEmoji: true,
+      orderIndex: true,
+      generationStatus: true,
+      tags: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
   res.json({ courses });
 });
 

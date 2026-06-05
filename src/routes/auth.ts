@@ -9,6 +9,12 @@ import { body } from "../validation.js";
 
 export const authRouter = Router();
 
+authRouter.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
+
 const Creds = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(200),
