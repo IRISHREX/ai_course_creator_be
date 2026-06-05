@@ -111,9 +111,14 @@ function isOldSingleKeyConstraintError(error: unknown) {
   );
 }
 
-export async function saveUserAiKey(userId: string, apiKey: string, provider = "google") {
+async function nextKeyLabel(userId: string, provider: string) {
+  const count = await prisma.userAiKey.count({ where: { userId, provider } });
+  return `token${count + 1} ${new Date().toISOString().slice(0, 10)}`;
+}
+
+export async function saveUserAiKey(userId: string, apiKey: string, provider = "google", alias = "") {
   const trimmed = apiKey.trim();
-  const keyPreview = trimmed.length > 8 ? `${trimmed.slice(0, 4)}...${trimmed.slice(-4)}` : "saved";
+  const keyPreview = alias.trim() || await nextKeyLabel(userId, provider);
   const data = {
     userId,
     provider,

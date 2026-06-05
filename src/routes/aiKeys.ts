@@ -10,6 +10,7 @@ export const aiKeysRouter = Router();
 const SaveKey = z.object({
   apiKey: z.string().min(10).max(500),
   provider: z.string().default("google"),
+  alias: z.string().trim().max(80).optional().default(""),
 });
 
 const adminOnly = [requireAuth, requireRole("admin", "super_admin")] as const;
@@ -52,7 +53,7 @@ aiKeysRouter.get("/", ...adminOnly, async (req: AuthedRequest, res) => {
 
 aiKeysRouter.post("/", ...adminOnly, async (req: AuthedRequest, res) => {
   const parsed = body(SaveKey, req);
-  const key = await saveUserAiKey(req.user!.id, parsed.apiKey, parsed.provider);
+  const key = await saveUserAiKey(req.user!.id, parsed.apiKey, parsed.provider, parsed.alias);
   res.json({ key });
 });
 
