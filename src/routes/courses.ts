@@ -19,7 +19,6 @@ coursesRouter.get("/", async (_req, res) => {
       orderIndex: true,
       generationStatus: true,
       tags: true,
-      mindmap: true,
       createdAt: true,
       updatedAt: true,
     },
