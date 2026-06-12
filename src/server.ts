@@ -13,7 +13,7 @@ import { adminRouter } from "./routes/admin.js";
 import { aiRouter } from "./routes/ai.js";
 import { aiKeysRouter } from "./routes/aiKeys.js";
 import { progressRouter } from "./routes/progress.js";
-import { prisma } from "./db.js";
+import { connectDB, disconnectDB, mongoose } from "./db.js";
 import { errorHandler, notFound } from "./http.js";
 import { logger } from "./logger.js";
 import { openApiDocument, swaggerHtml } from "./openapi.js";
@@ -63,8 +63,12 @@ app.use(pinoHttp({
 }));
 
 app.get("/health", async (_req, res) => {
-  await prisma.$queryRaw`SELECT 1`;
-  res.json({ ok: true, db: "ok" });
+  try {
+    await mongoose.connection.db?.admin().ping();
+    res.json({ ok: true, db: "ok" });
+  } catch (error) {
+    res.status(503).json({ ok: false, db: "error", error: String(error) });
+  }
 });
 app.get("/openapi.json", (_req, res) => res.json(openApiDocument));
 app.get("/docs", (_req, res) => res.type("html").send(swaggerHtml));
@@ -84,7 +88,7 @@ app.use(errorHandler);
 
 async function start() {
   try {
-    await prisma.$connect();
+    await connectDB();
     logger.info("DB connected");
 
     const server = app.listen(env.PORT, () => logger.info({ port: env.PORT }, "API listening"));
@@ -92,7 +96,7 @@ async function start() {
     const shutdown = async (signal: string) => {
       logger.info({ signal }, "Shutting down API");
       server.close(async () => {
-        await prisma.$disconnect();
+        await disconnectDB();
         process.exit(0);
       });
     };
