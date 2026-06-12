@@ -1,6 +1,13 @@
 import { Response, Router } from "express";
 import { z } from "zod";
-import { prisma } from "../db.js";
+import { User } from "../models/User.js";
+import { Course } from "../models/Course.js";
+import { Topic } from "../models/Topic.js";
+import { TopicVersion } from "../models/TopicVersion.js";
+import { Bookmark } from "../models/Bookmark.js";
+import { TopicProgress } from "../models/TopicProgress.js";
+import { CoursePyq } from "../models/CoursePyq.js";
+import { PyqTopic } from "../models/PyqTopic.js";
 import { requireAuth, requireRole } from "../auth.js";
 import { body, IdParam, params, query } from "../validation.js";
 
@@ -8,8 +15,10 @@ export const adminRouter = Router();
 
 adminRouter.get("/stats", requireAuth, requireRole("admin", "super_admin"), async (_req, res) => {
   const [users, courses, topics, pyqs] = await Promise.all([
-    prisma.user.count(), prisma.course.count(),
-    prisma.topic.count(), prisma.coursePyq.count(),
+    User.countDocuments(),
+    Course.countDocuments(),
+    Topic.countDocuments(),
+    CoursePyq.countDocuments(),
   ]);
   res.json({ users, courses, topics, pyqs });
 });
@@ -44,28 +53,27 @@ function row(entries: Record<string, unknown>) {
 }
 
 async function getBackupTables(): Promise<BackupTable[]> {
-  const [users, roles, courses, topics, versions, bookmarks, progress, pyqs, pyqTopics] = await Promise.all([
-    prisma.user.findMany({ orderBy: { createdAt: "asc" }, select: { id: true, email: true, displayName: true, createdAt: true } }),
-    prisma.userRole.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.course.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.topic.findMany({ orderBy: [{ courseId: "asc" }, { unit: "asc" }, { orderIndex: "asc" }] }),
-    prisma.topicVersion.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.bookmark.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.topicProgress.findMany({ orderBy: { updatedAt: "asc" } }),
-    prisma.coursePyq.findMany({ orderBy: [{ courseId: "asc" }, { orderIndex: "asc" }] }),
-    prisma.pyqTopic.findMany({ orderBy: { createdAt: "asc" } }),
+  const [users, courses, topics, versions, bookmarks, progress, pyqs, pyqTopics] = await Promise.all([
+    User.find({}).sort({ createdAt: 1 }),
+    Course.find({}).sort({ createdAt: 1 }),
+    Topic.find({}).sort({ courseId: 1, unit: 1, orderIndex: 1 }),
+    TopicVersion.find({}).sort({ createdAt: 1 }),
+    Bookmark.find({}).sort({ createdAt: 1 }),
+    TopicProgress.find({}).sort({ updatedAt: 1 }),
+    CoursePyq.find({}).sort({ courseId: 1, orderIndex: 1 }),
+    PyqTopic.find({}).sort({ createdAt: 1 }),
   ]);
 
   return [
-    { name: "users", rows: users.map((item) => row({ id: item.id, email: item.email, display_name: item.displayName, created_at: item.createdAt })) },
-    { name: "user_roles", rows: roles.map((item) => row({ id: item.id, user_id: item.userId, role: item.role, created_at: item.createdAt })) },
-    { name: "courses", rows: courses.map((item) => row({ id: item.id, slug: item.slug, title: item.title, description: item.description, cover_emoji: item.coverEmoji, order_index: item.orderIndex, source_text: item.sourceText, generation_status: item.generationStatus, tags: item.tags, mindmap: item.mindmap, toc: item.toc, created_at: item.createdAt, updated_at: item.updatedAt })) },
-    { name: "topics", rows: topics.map((item) => row({ id: item.id, course_id: item.courseId, slug: item.slug, unit: item.unit, order_index: item.orderIndex, title: item.title, summary: item.summary, content: item.content, translations: (item as any).translations || [], quiz: item.quiz, mindmap: item.mindmap, visualization: item.visualization, difficulty_level: item.difficultyLevel, generation_status: item.generationStatus, created_at: item.createdAt, updated_at: item.updatedAt })) },
-    { name: "topic_versions", rows: versions.map((item) => row({ id: item.id, topic_id: item.topicId, title: item.title, summary: item.summary, content: item.content, quiz: item.quiz, mindmap: item.mindmap, visualization: item.visualization, note: item.note, created_by: item.createdBy, created_at: item.createdAt })) },
-    { name: "bookmarks", rows: bookmarks.map((item) => row({ id: item.id, user_id: item.userId, topic_id: item.topicId, course_id: item.courseId, page_index: item.pageIndex, word_index: item.wordIndex, label: item.label, created_at: item.createdAt })) },
-    { name: "topic_progress", rows: progress.map((item) => row({ id: item.id, user_id: item.userId, topic_id: item.topicId, viewed: item.viewed, passed: item.passed, attempts: item.attempts, best_quiz_score: item.bestQuizScore, updated_at: item.updatedAt })) },
-    { name: "course_pyq", rows: pyqs.map((item) => row({ id: item.id, course_id: item.courseId, topic_id: item.topicId, question: item.question, answer: item.answer, marks: item.marks, year: item.year, source: item.source, ingestion_source: item.ingestionSource, order_index: item.orderIndex, created_at: item.createdAt, updated_at: item.updatedAt })) },
-    { name: "pyq_topics", rows: pyqTopics.map((item) => row({ id: item.id, pyq_id: item.pyqId, topic_id: item.topicId, created_at: item.createdAt })) },
+    { name: "users", rows: users.map((item) => row({ id: item._id, email: item.email, display_name: item.displayName, created_at: item.createdAt })) },
+    { name: "user_roles", rows: users.flatMap(u => u.roles.map(r => row({ id: `role_${u._id}_${r.role}`, user_id: u._id, role: r.role, created_at: r.createdAt }))) },
+    { name: "courses", rows: courses.map((item) => row({ id: item._id, slug: item.slug, title: item.title, description: item.description, cover_emoji: item.coverEmoji, order_index: item.orderIndex, source_text: item.sourceText, generation_status: item.generationStatus, tags: item.tags, mindmap: item.mindmap, toc: item.toc, created_at: item.createdAt, updated_at: item.updatedAt })) },
+    { name: "topics", rows: topics.map((item) => row({ id: item._id, course_id: item.courseId, slug: item.slug, unit: item.unit, order_index: item.orderIndex, title: item.title, summary: item.summary, content: item.content, translations: item.translations, quiz: item.quiz, mindmap: item.mindmap, visualization: item.visualization, difficulty_level: item.difficultyLevel, generation_status: item.generationStatus, created_at: item.createdAt, updated_at: item.updatedAt })) },
+    { name: "topic_versions", rows: versions.map((item) => row({ id: item._id, topic_id: item.topicId, title: item.title, summary: item.summary, content: item.content, quiz: item.quiz, mindmap: item.mindmap, visualization: item.visualization, note: item.note, created_by: item.createdBy, created_at: item.createdAt })) },
+    { name: "bookmarks", rows: bookmarks.map((item) => row({ id: item._id, user_id: item.userId, topic_id: item.topicId, course_id: item.courseId, page_index: item.pageIndex, word_index: item.wordIndex, label: item.label, created_at: item.createdAt })) },
+    { name: "topic_progress", rows: progress.map((item) => row({ id: item._id, user_id: item.userId, topic_id: item.topicId, viewed: item.viewed, passed: item.passed, attempts: item.attempts, best_quiz_score: item.bestQuizScore, updated_at: item.updatedAt })) },
+    { name: "course_pyq", rows: pyqs.map((item) => row({ id: item._id, course_id: item.courseId, topic_id: item.topicId, question: item.question, answer: item.answer, marks: item.marks, year: item.year, source: item.source, ingestion_source: item.ingestionSource, order_index: item.orderIndex, created_at: item.createdAt, updated_at: item.updatedAt })) },
+    { name: "pyq_topics", rows: pyqTopics.map((item) => row({ id: item._id, pyq_id: item.pyqId, topic_id: item.topicId, created_at: item.createdAt })) },
   ];
 }
 
@@ -178,23 +186,25 @@ adminRouter.get("/backup", requireAuth, requireRole("admin", "super_admin"), asy
 adminRouter.get("/users", requireAuth, requireRole("super_admin"), async (req, res) => {
   const { q } = query(z.object({ q: z.string().max(120).optional().default("") }), req);
   const search = q.toLowerCase();
-  const users = await prisma.user.findMany({
-    where: search ? { OR: [{ email: { contains: search } }, { displayName: { contains: search } }] } : {},
-    select: {
-      id: true,
-      email: true,
-      displayName: true,
-      createdAt: true,
-      roles: { select: { id: true, role: true, createdAt: true, userId: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
+  const filter = search
+    ? {
+        $or: [
+          { email: { $regex: search, $options: "i" } },
+          { displayName: { $regex: search, $options: "i" } },
+        ],
+      }
+    : {};
+
+  const users = await User.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .select("id email displayName createdAt roles");
+
   res.json({ users });
 });
 
 const RoleBody = z.object({
-  userId: z.string().uuid(),
+  userId: z.string(),
   role: z.enum(["admin", "super_admin"]),
   grant: z.boolean(),
 });
@@ -202,18 +212,23 @@ const RoleBody = z.object({
 adminRouter.post("/roles", requireAuth, requireRole("super_admin"), async (req, res) => {
   const { userId, role, grant } = body(RoleBody, req);
   if (grant) {
-    await prisma.userRole.upsert({
-      where: { userId_role: { userId, role } },
-      update: {}, create: { userId, role },
-    });
+    await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { roles: { role } } },
+      { new: true }
+    );
   } else {
-    await prisma.userRole.deleteMany({ where: { userId, role } });
+    await User.findByIdAndUpdate(
+      userId,
+      { $pull: { roles: { role } } },
+      { new: true }
+    );
   }
   res.json({ ok: true });
 });
 
 adminRouter.delete("/users/:id", requireAuth, requireRole("super_admin"), async (req, res) => {
   const { id } = params(IdParam, req);
-  await prisma.user.delete({ where: { id } });
+  await User.findByIdAndDelete(id);
   res.json({ ok: true });
 });
