@@ -1,4 +1,3 @@
-// Thin proxy to Gemini so the browser never sees the API key.
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole, AuthedRequest } from "../auth.js";
