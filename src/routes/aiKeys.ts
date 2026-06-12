@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../db.js";
+import { UserAiKey } from "../models/UserAiKey.js";
 import { requireAuth, requireRole, AuthedRequest } from "../auth.js";
 import { decryptApiKey, isAiKeyDecryptionError, saveUserAiKey } from "../aiKeys.js";
 import { body, query } from "../validation.js";
@@ -43,11 +43,9 @@ async function checkGeminiKey(apiKey: string) {
 }
 
 aiKeysRouter.get("/", ...adminOnly, async (req: AuthedRequest, res) => {
-  const keys = await prisma.userAiKey.findMany({
-    where: { userId: req.user!.id },
-    orderBy: [{ status: "asc" }, { updatedAt: "asc" }],
-    select: { id: true, provider: true, keyPreview: true, status: true, lastError: true, updatedAt: true },
-  });
+  const keys = await UserAiKey.find({ userId: req.user!.id })
+    .sort({ status: 1, updatedAt: 1 })
+    .select("id provider keyPreview status lastError updatedAt");
   res.json({ key: keys[0] ?? null, keys });
 });
 
@@ -58,10 +56,7 @@ aiKeysRouter.post("/", ...adminOnly, async (req: AuthedRequest, res) => {
 });
 
 aiKeysRouter.post("/check", ...adminOnly, async (req: AuthedRequest, res) => {
-  const keys = await prisma.userAiKey.findMany({
-    where: { userId: req.user!.id },
-    orderBy: [{ updatedAt: "asc" }],
-  });
+  const keys = await UserAiKey.find({ userId: req.user!.id }).sort({ updatedAt: 1 });
   if (!keys.length) return res.status(404).json({ error: "No Gemini API key saved" });
 
   const checks = [];
@@ -81,21 +76,22 @@ aiKeysRouter.post("/check", ...adminOnly, async (req: AuthedRequest, res) => {
       };
     }
     if (canPersistResult) {
-      await prisma.userAiKey.update({
-        where: { id: key.id },
-        data: {
+      await UserAiKey.findByIdAndUpdate(
+        key._id,
+        {
           status: result.status,
           lastError: result.ok ? null : result.message,
-        },
-      });
+        }
+      );
     }
-    checks.push({ id: key.id, keyPreview: key.keyPreview, ...result });
+    checks.push({ id: key._id, keyPreview: key.keyPreview, ...result });
   }
   res.json({ check: checks[0], checks });
 });
 
 aiKeysRouter.delete("/", ...adminOnly, async (req: AuthedRequest, res) => {
-  const { id } = query(z.object({ id: z.string().uuid().optional() }), req);
-  await prisma.userAiKey.deleteMany({ where: { userId: req.user!.id, ...(id ? { id } : {}) } });
+  const { id } = query(z.object({ id: z.string().optional() }), req);
+  const filter = { userId: req.user!.id, ...(id ? { _id: id } : {}) };
+  await UserAiKey.deleteMany(filter);
   res.json({ ok: true });
 });
