@@ -72,7 +72,7 @@ topicsRouter.patch("/:id", requireAuth, requireRole("admin", "super_admin"), asy
   const parsed = UpsertTopic.partial().parse(normalizeTopicInput(req.body));
   const note = (req.body?.versionNote as string) || null;
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: any) => {
     const topicId = id;
     const before = await tx.topic.findUnique({ where: { id: topicId } });
     if (!before) throw new HttpError(404, "Topic not found", "TOPIC_NOT_FOUND");

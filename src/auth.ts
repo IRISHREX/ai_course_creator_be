@@ -18,7 +18,7 @@ async function getAuthUser(decoded: { sub: string; email: string }) {
     select: { id: true, email: true, roles: { select: { role: true } } },
   });
   if (!user) return null;
-  return { id: user.id, email: user.email || decoded.email, roles: user.roles.map(r => r.role) };
+  return { id: user.id, email: user.email || decoded.email, roles: user.roles.map((r: any) => r.role) };
 }
 
 export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {

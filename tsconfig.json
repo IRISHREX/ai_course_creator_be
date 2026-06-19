@@ -11,5 +11,5 @@
     "rootDir": ".",
     "allowImportingTsExtensions": false
   },
-  "include": ["src/**/*", "scripts/**/*"]
+  "include": ["src/**/*"]
 }

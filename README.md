@@ -1,12 +1,11 @@
 # IGNOUprep Backend
 
-Express + Prisma + JWT API for the course creator app.
+Express + MongoDB/Mongoose + JWT API for the course creator app.
 
 ## Stack
 
 - Node 20 + Express 4
-- Prisma 5
-- PostgreSQL or MySQL, selected by `scripts/prisma-auto.ts`
+- MongoDB + Mongoose
 - JWT auth + bcrypt password hashing
 - Zod validation
 - Pino request logging with secret redaction
@@ -18,8 +17,6 @@ Express + Prisma + JWT API for the course creator app.
 cd backend
 cp .env.example .env
 npm install
-npm run prisma:generate:auto
-npm run prisma:migrate-dev:auto -- --name init
 npm run dev
 ```
 
@@ -35,7 +32,7 @@ Useful endpoints:
 
 Required:
 
-- `DATABASE_URL`
+- `DATABASE_URL` MongoDB connection string, for example `mongodb://127.0.0.1:27017/ai_course_creator`
 - `JWT_SECRET`
 
 Optional:
@@ -58,10 +55,6 @@ The React frontend uses `src/integrations/api/client.ts` as a small API adapter 
 ```bash
 cd backend
 npm install
-npm run prisma:generate:auto
-npm run prisma:migrate:auto
 npm run build
 npm start
 ```
-
-Use `npm run prisma:push:auto` only when you intentionally want schema push behavior instead of migrations.

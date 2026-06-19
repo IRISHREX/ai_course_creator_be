@@ -31,16 +31,20 @@ function databaseUrl(): string {
     const username = decodeURIComponent(url.username);
     const password = decodeURIComponent(url.password);
 
-    if (url.protocol === "mysql:" && username === "user" && password === "pass") {
+    if (url.protocol !== "mongodb:" && url.protocol !== "mongodb+srv:") {
+      throw new Error("DATABASE_URL must use a MongoDB connection URL, for example mongodb://127.0.0.1:27017/ai_course_creator.");
+    }
+
+    if (url.protocol === "mongodb:" && username === "user" && password === "pass") {
       throw new Error(
-        "DATABASE_URL still uses the example MySQL credentials. Update backend/.env with a real MySQL user/password, then restart the API."
+        "DATABASE_URL still uses example MongoDB credentials. Update backend/.env with a real MongoDB user/password, then restart the API."
       );
     }
   } catch (err) {
-    if (err instanceof Error && err.message.startsWith("DATABASE_URL still uses")) {
+    if (err instanceof Error && (err.message.startsWith("DATABASE_URL still uses") || err.message.startsWith("DATABASE_URL must use"))) {
       throw err;
     }
-    throw new Error("DATABASE_URL must be a valid database connection URL.");
+    throw new Error("DATABASE_URL must be a valid MongoDB connection URL.");
   }
 
   return value;

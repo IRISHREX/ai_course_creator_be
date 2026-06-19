@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { Prisma } from "@prisma/client";
+import mongoose from "mongoose";
 import { ZodError } from "zod";
 import { logger } from "./logger.js";
 
@@ -21,17 +21,17 @@ export function notFound(_req: Request, res: Response) {
   });
 }
 
-function prismaError(error: Prisma.PrismaClientKnownRequestError) {
-  if (error.code === "P2002") {
-    return new HttpError(409, "Record already exists", "CONFLICT", error.meta);
+function mongoError(error: unknown) {
+  if (error instanceof mongoose.Error.ValidationError) {
+    return new HttpError(400, "Invalid database record", "VALIDATION_ERROR", error.message);
   }
-  if (error.code === "P2025") {
-    return new HttpError(404, "Record not found", "NOT_FOUND");
+  if (error instanceof mongoose.Error.CastError) {
+    return new HttpError(400, "Invalid record id", "VALIDATION_ERROR", error.message);
   }
-  if (error.code === "P2003") {
-    return new HttpError(409, "Related record constraint failed", "RELATION_CONSTRAINT", error.meta);
+  if (typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === 11000) {
+    return new HttpError(409, "Record already exists", "CONFLICT");
   }
-  return new HttpError(500, "Database request failed", "DATABASE_ERROR");
+  return null;
 }
 
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
@@ -42,14 +42,12 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     httpError = err;
   } else if (err instanceof ZodError) {
     httpError = new HttpError(400, "Invalid request body", "VALIDATION_ERROR", err.flatten());
-  } else if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    httpError = prismaError(err);
   } else if (err instanceof SyntaxError && "body" in err) {
     httpError = new HttpError(400, "Malformed JSON body", "MALFORMED_JSON");
   } else if (err instanceof Error && err.message === "Not found") {
     httpError = new HttpError(404, "Record not found", "NOT_FOUND");
   } else {
-    httpError = new HttpError(500, "Server error", "SERVER_ERROR");
+    httpError = mongoError(err) || new HttpError(500, "Server error", "SERVER_ERROR");
   }
 
   const shouldLogStack = httpError.status >= 500;

@@ -82,7 +82,7 @@ pyqRouter.patch("/:id", requireAuth, requireRole("admin", "super_admin"), async 
   const { topicIds, ...data } = body(UpsertPyq.partial(), req);
   if (data.question) data.question = cleanPyqText(data.question);
   if (data.answer) data.answer = cleanPyqText(data.answer);
-  const pyq = await prisma.$transaction(async (tx) => {
+  const pyq = await prisma.$transaction(async (tx: any) => {
     const pyqId = id;
     const updated = await tx.coursePyq.update({ where: { id: pyqId }, data: data as any });
     if (topicIds) {

@@ -63,7 +63,7 @@ app.use(pinoHttp({
 }));
 
 app.get("/health", async (_req, res) => {
-  await prisma.$queryRaw`SELECT 1`;
+  await prisma.$queryRaw();
   res.json({ ok: true, db: "ok" });
 });
 app.get("/openapi.json", (_req, res) => res.json(openApiDocument));
@@ -82,10 +82,35 @@ app.use("/progress", progressRouter);
 app.use(notFound);
 app.use(errorHandler);
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function connectDatabaseWithRetry() {
+  const attempts = Number(process.env.DB_CONNECT_RETRIES || 5);
+  const delayMs = Number(process.env.DB_CONNECT_RETRY_MS || 3000);
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await prisma.$connect();
+      logger.info("DB connected");
+      return;
+    } catch (err) {
+      const finalAttempt = attempt === attempts;
+      logger[finalAttempt ? "error" : "warn"](
+        { err, attempt, attempts, retryInMs: finalAttempt ? undefined : delayMs },
+        finalAttempt
+          ? "DB connection failed after all retries"
+          : "DB connection failed; retrying"
+      );
+      if (!finalAttempt) await sleep(delayMs);
+    }
+  }
+
+  throw new Error("Database connection unavailable");
+}
+
 async function start() {
   try {
-    await prisma.$connect();
-    logger.info("DB connected");
+    await connectDatabaseWithRetry();
 
     const server = app.listen(env.PORT, () => logger.info({ port: env.PORT }, "API listening"));
 
