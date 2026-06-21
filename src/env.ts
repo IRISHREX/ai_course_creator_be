@@ -47,6 +47,24 @@ function databaseUrl(): string {
     throw new Error("DATABASE_URL must be a valid MongoDB connection URL.");
   }
 
+  // Some networks allow normal DNS but reject SRV-record queries used by
+  // mongodb+srv URLs. Set MONGODB_DIRECT_HOSTS locally to use Atlas's three
+  // replica-set hosts without duplicating credentials in another variable.
+  const directHosts = process.env.MONGODB_DIRECT_HOSTS?.trim();
+  if (directHosts && value.startsWith("mongodb+srv://")) {
+    const source = new URL(value);
+    const directOptions = new URLSearchParams(source.search);
+    for (const [key, optionValue] of new URLSearchParams(process.env.MONGODB_DIRECT_OPTIONS || "")) {
+      directOptions.set(key, optionValue);
+    }
+
+    const credentials = source.username
+      ? `${encodeURIComponent(decodeURIComponent(source.username))}:${encodeURIComponent(decodeURIComponent(source.password))}@`
+      : "";
+    const database = source.pathname === "/" ? "" : source.pathname;
+    return `mongodb://${credentials}${directHosts}${database}?${directOptions.toString()}`;
+  }
+
   return value;
 }
 
