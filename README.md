@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-Default local API URL: `http://localhost:5000`
+Default local API URL: `http://localhost:8081`
 
 Useful endpoints:
 
