@@ -9,10 +9,33 @@ export const aiRouter = Router();
 
 const ChatBody = z.object({
   model: z.string().default("google/gemini-2.5-flash"),
-  messages: z.array(z.object({ role: z.string(), content: z.any() })),
+  messages: z.array(z.object({
+    role: z.string(),
+    content: z.any(),
+    tool_call_id: z.string().optional(),
+    name: z.string().optional(),
+    tool_calls: z.array(z.object({
+      id: z.string().optional(),
+      type: z.string().optional(),
+      function: z.object({
+        name: z.string().optional(),
+        arguments: z.any().optional(),
+      }).optional(),
+    })).optional(),
+  }).passthrough()),
   tools: z.any().optional(),
   tool_choice: z.any().optional(),
   temperature: z.number().optional(),
+  max_tokens: z.number().int().positive().optional(),
+  top_p: z.number().optional(),
+  top_k: z.number().int().optional(),
+  stop: z.union([z.string(), z.array(z.string())]).optional(),
+  response_format: z.object({
+    type: z.string().optional(),
+    json_schema: z.object({
+      schema: z.any().optional(),
+    }).passthrough().optional(),
+  }).passthrough().optional(),
 });
 
 function toGeminiModel(model: string): string {
@@ -29,6 +52,60 @@ function toGeminiText(content: unknown): string {
     }).join("\n");
   }
   return typeof content === "undefined" ? "" : JSON.stringify(content);
+}
+
+function toGeminiResponseFormat(responseFormat: unknown) {
+  const type = (responseFormat as any)?.type;
+  if (type === "json_object") return { responseMimeType: "application/json" };
+  const schema = (responseFormat as any)?.json_schema?.schema;
+  if (type === "json_schema" && schema && typeof schema === "object") {
+    return {
+      responseMimeType: "application/json",
+      responseSchema: schema,
+    };
+  }
+  return {};
+}
+
+function parseFunctionArgs(value: unknown) {
+  if (typeof value !== "string") return value ?? {};
+  try {
+    return JSON.parse(value);
+  } catch {
+    return {};
+  }
+}
+
+function toGeminiContents(messages: Array<{ role: string; content?: unknown; tool_calls?: any[]; name?: string; tool_call_id?: string }>) {
+  return messages
+    .filter((message) => message.role !== "system")
+    .map((message) => {
+      if (message.role === "assistant") {
+        const parts = [
+          ...(message.content ? [{ text: toGeminiText(message.content) }] : []),
+          ...((message.tool_calls || [])
+            .filter((call: any) => call?.function?.name)
+            .map((call: any) => ({
+              functionCall: {
+                name: call.function.name,
+                args: parseFunctionArgs(call.function.arguments),
+              },
+            }))),
+        ];
+        return { role: "model", parts: parts.length ? parts : [{ text: "" }] };
+      }
+      if (message.role === "tool") {
+        const label = [message.name, message.tool_call_id].filter(Boolean).join(":");
+        return {
+          role: "user",
+          parts: [{ text: `${label ? `[tool ${label}] ` : ""}${toGeminiText(message.content)}` }],
+        };
+      }
+      return {
+        role: "user",
+        parts: [{ text: toGeminiText(message.content) }],
+      };
+    });
 }
 
 function toGeminiTools(tools: unknown) {
@@ -83,16 +160,15 @@ aiRouter.post("/chat", requireAuth, requireRole("admin", "super_admin"), async (
     .map((message) => toGeminiText(message.content))
     .filter(Boolean)
     .join("\n\n");
-  const contents = parsed.data.messages
-    .filter((message) => message.role !== "system")
-    .map((message) => ({
-      role: message.role === "assistant" ? "model" : "user",
-      parts: [{ text: toGeminiText(message.content) }],
-    }));
+  const contents = toGeminiContents(parsed.data.messages);
 
   const model = toGeminiModel(parsed.data.model);
   const geminiTools = toGeminiTools(parsed.data.tools);
   const toolConfig = toGeminiToolConfig(parsed.data.tool_choice);
+  const responseFormat = toGeminiResponseFormat(parsed.data.response_format);
+  const stopSequences = typeof parsed.data.stop === "string"
+    ? [parsed.data.stop]
+    : parsed.data.stop;
   const requestBody = JSON.stringify({
     contents,
     ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
@@ -100,6 +176,11 @@ aiRouter.post("/chat", requireAuth, requireRole("admin", "super_admin"), async (
     ...(toolConfig ? { toolConfig } : {}),
     generationConfig: {
       ...(typeof parsed.data.temperature === "number" ? { temperature: parsed.data.temperature } : {}),
+      ...(typeof parsed.data.max_tokens === "number" ? { maxOutputTokens: parsed.data.max_tokens } : {}),
+      ...(typeof parsed.data.top_p === "number" ? { topP: parsed.data.top_p } : {}),
+      ...(typeof parsed.data.top_k === "number" ? { topK: parsed.data.top_k } : {}),
+      ...(Array.isArray(stopSequences) && stopSequences.length ? { stopSequences } : {}),
+      ...responseFormat,
     },
   });
 
