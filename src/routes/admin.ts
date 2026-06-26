@@ -2,7 +2,7 @@ import { Response, Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
-import { body, IdParam, params, query } from "../validation.js";
+import { body, IdParam, RecordId, params, query } from "../validation.js";
 
 export const adminRouter = Router();
 
@@ -194,7 +194,7 @@ adminRouter.get("/users", requireAuth, requireRole("super_admin"), async (req, r
 });
 
 const RoleBody = z.object({
-  userId: z.string().uuid(),
+  userId: RecordId,
   role: z.enum(["admin", "super_admin"]),
   grant: z.boolean(),
 });

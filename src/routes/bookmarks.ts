@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, AuthedRequest } from "../auth.js";
-import { body, IdParam, params } from "../validation.js";
+import { body, IdParam, RecordId, params } from "../validation.js";
 
 export const bookmarksRouter = Router();
 
@@ -14,8 +14,8 @@ bookmarksRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
 });
 
 const Body = z.object({
-  topicId: z.string().uuid(),
-  courseId: z.string().uuid(),
+  topicId: RecordId,
+  courseId: RecordId,
   pageIndex: z.number().int().min(0).default(0),
   wordIndex: z.number().int().min(0).default(0),
   label: z.string().max(200).optional(),

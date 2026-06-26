@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole, AuthedRequest } from "../auth.js";
 import { decryptApiKey, isAiKeyDecryptionError, saveUserAiKey } from "../aiKeys.js";
-import { body, query } from "../validation.js";
+import { body, query, RecordId } from "../validation.js";
 
 export const aiKeysRouter = Router();
 
@@ -95,7 +95,7 @@ aiKeysRouter.post("/check", ...adminOnly, async (req: AuthedRequest, res) => {
 });
 
 aiKeysRouter.delete("/", ...adminOnly, async (req: AuthedRequest, res) => {
-  const { id } = query(z.object({ id: z.string().uuid().optional() }), req);
+  const { id } = query(z.object({ id: RecordId.optional() }), req);
   await prisma.userAiKey.deleteMany({ where: { userId: req.user!.id, ...(id ? { id } : {}) } });
   res.json({ ok: true });
 });

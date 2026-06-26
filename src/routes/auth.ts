@@ -21,6 +21,17 @@ const Creds = z.object({
   displayName: z.string().min(1).max(120).optional(),
 });
 
+async function ensureBootstrapRoles(userId: string, email: string) {
+  const roles = [{ userId, role: "user" }, ...(env.SUPER_ADMIN_EMAILS.includes(email)
+    ? [{ userId, role: "admin" }, { userId, role: "super_admin" }]
+    : [])];
+
+  await prisma.userRole.createMany({
+    data: roles,
+    skipDuplicates: true,
+  });
+}
+
 authRouter.post("/signup", async (req, res) => {
   const { email, password, displayName } = body(Creds, req);
   const lower = email.toLowerCase();
@@ -38,12 +49,7 @@ authRouter.post("/signup", async (req, res) => {
     },
   });
 
-  if (env.SUPER_ADMIN_EMAILS.includes(lower)) {
-    await prisma.userRole.createMany({
-      data: [{ userId: user.id, role: "admin" }, { userId: user.id, role: "super_admin" }],
-      skipDuplicates: true,
-    });
-  }
+  await ensureBootstrapRoles(user.id, lower);
 
   const token = signToken({ sub: user.id, email: user.email });
   res.json({ token, user: { id: user.id, email: user.email, displayName: user.displayName } });
@@ -57,6 +63,8 @@ authRouter.post("/login", async (req, res) => {
   const passwordHash = typeof user.passwordHash === "string" ? user.passwordHash : String(user.passwordHash ?? "");
   const ok = await bcrypt.compare(password, passwordHash);
   if (!ok) throw new HttpError(401, "Invalid credentials", "INVALID_CREDENTIALS");
+
+  await ensureBootstrapRoles(user.id, user.email);
 
   const token = signToken({ sub: user.id, email: user.email });
   res.json({ token, user: { id: user.id, email: user.email, displayName: user.displayName } });

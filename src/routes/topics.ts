@@ -2,13 +2,13 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole, AuthedRequest } from "../auth.js";
-import { IdParam, params, query } from "../validation.js";
+import { IdParam, RecordId, params, query } from "../validation.js";
 import { HttpError } from "../http.js";
 
 export const topicsRouter = Router();
 
 topicsRouter.get("/", async (req, res) => {
-  const { courseId } = query(z.object({ courseId: z.string().uuid().optional() }), req);
+  const { courseId } = query(z.object({ courseId: RecordId.optional() }), req);
   const topics = await prisma.topic.findMany({
     where: courseId ? { courseId } : {},
     orderBy: [{ unit: "asc" }, { orderIndex: "asc" }],
@@ -31,7 +31,7 @@ topicsRouter.get("/:id", async (req, res) => {
 });
 
 const UpsertTopic = z.object({
-  courseId: z.string().uuid(),
+  courseId: RecordId,
   slug: z.string().min(1),
   unit: z.number().int().min(1),
   orderIndex: z.number().int(),
@@ -105,7 +105,7 @@ topicsRouter.get("/:id/versions", requireAuth, requireRole("admin", "super_admin
 });
 
 topicsRouter.post("/:id/revert/:versionId", requireAuth, requireRole("admin", "super_admin"), async (req, res) => {
-  const { id: topicId, versionId } = params(z.object({ id: z.string().uuid(), versionId: z.string().uuid() }), req);
+  const { id: topicId, versionId } = params(z.object({ id: RecordId, versionId: RecordId }), req);
   const v = await prisma.topicVersion.findUnique({ where: { id: versionId } });
   if (!v || v.topicId !== topicId) throw new HttpError(404, "Version not found", "VERSION_NOT_FOUND");
   const topic = await prisma.topic.update({

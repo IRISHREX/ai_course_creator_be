@@ -2,15 +2,15 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
-import { body, IdParam, params, query } from "../validation.js";
+import { body, IdParam, RecordId, params, query } from "../validation.js";
 import { HttpError } from "../http.js";
 
 export const pyqRouter = Router();
 
 pyqRouter.get("/", async (req, res) => {
   const { courseId, topicId, year } = query(z.object({
-    courseId: z.string().uuid(),
-    topicId: z.string().uuid().optional(),
+    courseId: RecordId,
+    topicId: RecordId.optional(),
     year: z.coerce.number().int().optional(),
   }), req);
 
@@ -27,7 +27,7 @@ pyqRouter.get("/", async (req, res) => {
 });
 
 pyqRouter.get("/topics", async (req, res) => {
-  const { courseId } = query(z.object({ courseId: z.string().uuid().optional() }), req);
+  const { courseId } = query(z.object({ courseId: RecordId.optional() }), req);
   const links = await prisma.pyqTopic.findMany({
     where: courseId ? { pyq: { courseId } } : {},
     include: { pyq: true },
@@ -37,13 +37,13 @@ pyqRouter.get("/topics", async (req, res) => {
 });
 
 const UpsertPyq = z.object({
-  courseId: z.string().uuid(),
+  courseId: RecordId,
   question: z.string().min(1),
   answer: z.string().default(""),
   marks: z.number().int().nullable().optional(),
   year: z.number().int().nullable().optional(),
   source: z.string().nullable().optional(),
-  topicIds: z.array(z.string().uuid()).optional(),
+  topicIds: z.array(RecordId).optional(),
 });
 
 function cleanPyqText(value: string) {
@@ -110,7 +110,7 @@ pyqRouter.delete("/:id", requireAuth, requireRole("admin", "super_admin"), async
 
 pyqRouter.post("/:id/topics", requireAuth, requireRole("admin", "super_admin"), async (req, res) => {
   const { id } = params(IdParam, req);
-  const parsed = body(z.object({ topicId: z.string().uuid() }), req);
+  const parsed = body(z.object({ topicId: RecordId }), req);
   const exists = await prisma.coursePyq.findUnique({ where: { id }, select: { id: true, courseId: true } });
   if (!exists) throw new HttpError(404, "PYQ not found", "PYQ_NOT_FOUND");
   await assertTopicsBelongToCourse([parsed.topicId], exists.courseId);
@@ -123,7 +123,7 @@ pyqRouter.post("/:id/topics", requireAuth, requireRole("admin", "super_admin"), 
 });
 
 pyqRouter.delete("/:id/topics/:topicId", requireAuth, requireRole("admin", "super_admin"), async (req, res) => {
-  const { id, topicId } = params(z.object({ id: z.string().uuid(), topicId: z.string().uuid() }), req);
+  const { id, topicId } = params(z.object({ id: RecordId, topicId: RecordId }), req);
   await prisma.pyqTopic.deleteMany({ where: { pyqId: id, topicId } });
   res.json({ ok: true });
 });

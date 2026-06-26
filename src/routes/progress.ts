@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, AuthedRequest } from "../auth.js";
-import { body } from "../validation.js";
+import { body, RecordId } from "../validation.js";
 
 export const progressRouter = Router();
 
@@ -15,7 +15,7 @@ progressRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
 });
 
 const ProgressBody = z.object({
-  topicId: z.string().uuid(),
+  topicId: RecordId,
   viewed: z.boolean().optional(),
   passed: z.boolean().optional(),
   attempts: z.number().int().min(0).optional(),
