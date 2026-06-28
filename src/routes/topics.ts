@@ -41,6 +41,7 @@ const UpsertTopic = z.object({
   translations: z.any().optional(),
   quiz: z.any().optional(),
   mindmap: z.any().optional(),
+  presentation: z.any().optional(),
   visualization: z.string().nullable().optional(),
   generationStatus: z.string().optional(),
 });
@@ -81,7 +82,8 @@ topicsRouter.patch("/:id", requireAuth, requireRole("admin", "super_admin"), asy
       data: {
         topicId: before.id, title: before.title, summary: before.summary,
         content: before.content as any, quiz: before.quiz as any,
-        mindmap: before.mindmap as any, visualization: before.visualization,
+        mindmap: before.mindmap as any, presentation: before.presentation as any,
+        visualization: before.visualization,
         note, createdBy: req.user!.id,
       },
     });
@@ -112,7 +114,8 @@ topicsRouter.post("/:id/revert/:versionId", requireAuth, requireRole("admin", "s
     where: { id: topicId },
     data: {
       title: v.title, summary: v.summary, content: v.content as any,
-      quiz: v.quiz as any, mindmap: v.mindmap as any, visualization: v.visualization,
+      quiz: v.quiz as any, mindmap: v.mindmap as any,
+      presentation: v.presentation as any, visualization: v.visualization,
     },
   });
   res.json({ topic });

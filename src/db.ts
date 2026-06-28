@@ -72,6 +72,7 @@ const topicSchema = new Schema({
   translations: { type: Schema.Types.Mixed, default: jsonDefault([]) },
   quiz: { type: Schema.Types.Mixed, default: jsonDefault([]) },
   mindmap: Schema.Types.Mixed,
+  presentation: Schema.Types.Mixed,
   visualization: String,
   difficultyLevel: { type: Number, default: 5 },
   generationStatus: { type: String, default: "ready" },
@@ -87,6 +88,7 @@ const topicVersionSchema = new Schema({
   content: { type: Schema.Types.Mixed, default: jsonDefault([]) },
   quiz: { type: Schema.Types.Mixed, default: jsonDefault([]) },
   mindmap: Schema.Types.Mixed,
+  presentation: Schema.Types.Mixed,
   visualization: String,
   note: String,
   createdBy: Schema.Types.Mixed,
@@ -326,6 +328,10 @@ function delegate(modelName: string) {
         if (modelName === "pyqTopic") criteria.pyqId = { $in: relatedIds };
       }
       const query = model.find(criteria).sort(sortBy(args.orderBy));
+      const selectedFields = Object.entries(args.select || {})
+        .filter(([key, enabled]) => enabled === true && !["roles", "topicLinks", "pyq", "topic"].includes(key))
+        .map(([key]) => key === "id" ? "_id" : key);
+      if (selectedFields.length) query.select(Object.fromEntries(selectedFields.map((key) => [key, 1])));
       if (args.take) query.limit(args.take);
       const items = (await query.lean()).map(plain);
       return includeRelations(modelName, items, args.include, args.select);

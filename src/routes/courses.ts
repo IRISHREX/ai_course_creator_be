@@ -23,7 +23,23 @@ coursesRouter.get("/", async (_req, res) => {
       updatedAt: true,
     },
   });
-  res.json({ courses });
+  const visuals = await prisma.topic.findMany({
+    select: { courseId: true, mindmap: true, presentation: true },
+  });
+  const readyCourseIds = new Set(
+    visuals
+      .filter((topic: any) => {
+        const slides = topic.presentation?.slides;
+        return topic.mindmap || (Array.isArray(slides) && slides.length > 0);
+      })
+      .map((topic: any) => String(topic.courseId)),
+  );
+  res.json({
+    courses: courses.map((course: any) => ({
+      ...course,
+      playbackReady: readyCourseIds.has(String(course.id)),
+    })),
+  });
 });
 
 coursesRouter.get("/:slug", async (req, res) => {
